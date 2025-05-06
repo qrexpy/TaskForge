@@ -609,26 +609,21 @@ def prioritize_task(
         console.print(f"[red]Error updating task priority: {e}[/red]")
 
 
-def create_example_tasks():
-    """Create example tasks for demonstration."""
-    # Clear existing tasks first
+@app.command("examples")
+def create_examples():
+    """Create example tasks with unique IDs."""
     storage.tasks.clear()
-    
-    # Set today and tomorrow dates properly
-    today = datetime.now()
-    tomorrow = today.replace(day=today.day + 1)
-    
+    now = datetime.now()
     try:
-        # Create tasks
         task1 = Task(
             title="Complete TaskForge project",
             description="Implement all features for the TaskForge CLI application",
             priority=Priority.HIGH,
-            due_date=today.replace(hour=23, minute=59, second=0),
+            due_date=now.replace(hour=23, minute=59, second=0),
             tags=["coding", "project"]
         )
         storage.add_task(task1)
-        
+        time.sleep(0.01)
         task2 = Task(
             title="Buy groceries",
             description="Milk, eggs, bread, fruits",
@@ -636,34 +631,30 @@ def create_example_tasks():
             tags=["shopping", "home"]
         )
         storage.add_task(task2)
-        
+        time.sleep(0.01)
         task3 = Task(
-            title="Pay electricity bill",
-            priority=Priority.URGENT,
-            due_date=tomorrow,
-            tags=["bills", "home"]
-        )
-        storage.add_task(task3)
-        
-        task4 = Task(
             title="Call mom",
             priority=Priority.LOW,
             tags=["personal"]
         )
-        storage.add_task(task4)
-        
-        # Save all tasks
+        storage.add_task(task3)
         storage.save_tasks()
-        
-        console.print("[green]Example tasks created.[/green]")
+        console.print("[green]Example tasks created with unique IDs.[/green]")
     except Exception as e:
-        console.print(f"[red]Error creating demo tasks: {e}[/red]")
+        console.print(f"[red]Error creating example tasks: {e}[/red]")
 
 
-@app.command("demo")
-def create_demo():
-    """Create example tasks for demonstration."""
-    create_example_tasks()
+def add_to_path():
+    """Add the current file's directory to the system PATH (Windows only)."""
+    import subprocess
+    dir_path = os.path.dirname(os.path.abspath(__file__))
+    command = f'setx PATH "%PATH%;{dir_path}"'
+    try:
+        subprocess.run(command, shell=True, check=True)
+        console.print("[green]TaskForge directory added to PATH successfully.[/green]")
+        console.print("[yellow]Note: If the file's path is altered, the command will not work and you will have to re-add the file to PATH with the new file path.[/yellow]")
+    except Exception as e:
+        console.print(f"[red]Failed to add TaskForge to PATH: {e}[/red]")
 
 
 @app.command("export")
@@ -772,7 +763,7 @@ def update_sync(show_keys: bool = typer.Option(False, "--show-keys", help="Show 
         console.print("[cyan]Updating sync on Rubis...[/cyan]")
         result = rubis_sync.update_sync(tasks)
         
-        console.print("[green]Sync updated successfully![/green]")
+        console.print("[green]Sync updated successfully![green]")
         console.print(f"Scrap URL: [link={result['url']}]{result['url']}[/link]")
         
         if show_keys:
