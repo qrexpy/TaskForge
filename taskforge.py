@@ -17,13 +17,19 @@ from pydantic import ValidationError
 
 from models import Task, Priority
 from storage import TaskStorage
+from rubis_sync import TaskForgeRubisSync
 
 app = typer.Typer(help="TaskForge: A Cross-Platform CLI Task Manager")
 console = Console()
 storage = TaskStorage()
+rubis_sync = TaskForgeRubisSync()
 
 # Date format for displaying dates
 DATE_FORMAT = "%Y-%m-%d %H:%M"
+
+# Add a sync command group for all Rubis-related functionality
+sync_app = typer.Typer(help="Sync tasks with Rubis scraps")
+app.add_typer(sync_app, name="sync")
 
 
 def parse_date(date_str: str) -> datetime:
@@ -231,7 +237,7 @@ def complete_task(task_id: str = typer.Argument(..., help="ID of the task to mar
         return
     
     task.complete()
-    storage.update_task(task_id, task)
+    storage.update_task(task)
     console.print(f"[green]Task {task_id[:8]} marked as completed.[/green]")
 
 
@@ -249,7 +255,7 @@ def uncomplete_task(task_id: str = typer.Argument(..., help="ID of the task to m
         return
     
     task.uncomplete()
-    storage.update_task(task_id, task)
+    storage.update_task(task)
     console.print(f"[green]Task {task_id[:8]} marked as not completed.[/green]")
 
 
@@ -291,7 +297,7 @@ def edit_task(
             else:
                 task.tags = parse_tags(tags)
         
-        storage.update_task(task_id, task)
+        storage.update_task(task)
         console.print(f"[green]Task {task_id[:8]} updated successfully.[/green]")
         console.print(Panel(format_task_for_display(task)))
         
@@ -581,7 +587,7 @@ def prioritize_task(
                 console.print("[red]Invalid input. Please enter a number.[/red]")
                 return
         
-        updated_task = storage.update_task(task_id, task)
+        updated_task = storage.update_task(task)
         
         if updated_task:
             priority_colors = {
@@ -687,6 +693,192 @@ def import_tasks(
         console.print(f"[green]Successfully imported {task_count} tasks from {input_file}[/green]")
     except Exception as e:
         console.print(f"[red]Error importing tasks: {e}[/red]")
+
+
+# Sync commands
+@sync_app.callback(invoke_without_command=True)
+def sync(ctx: typer.Context):
+    """Sync tasks with Rubis scraps."""
+    if ctx.invoked_subcommand is None:
+        # Show sync status if no subcommand is provided
+        current_sync = rubis_sync.get_current_sync_info()
+        
+        if current_sync["id"]:
+            console.print("[bold]Current Sync Status:[/bold]")
+            console.print(f"Scrap ID: [cyan]{current_sync['id']}[/cyan]")
+            console.print(f"URL: [link={current_sync['url']}]{current_sync['url']}[/link]")
+            console.print(f"Last synced: {current_sync.get('time', 'Unknown')}")
+            
+            if current_sync.get('access_key'):
+                console.print(f"Access Key: [yellow]{current_sync['access_key']}[/yellow] (keep this private)")
+        else:
+            console.print("[yellow]No active sync found. Use 'create' to start a new sync.[/yellow]")
+
+
+@sync_app.command("create")
+def create_sync(
+    public: bool = typer.Option(False, "--public", help="Make the scrap publicly accessible"),
+    show_keys: bool = typer.Option(False, "--show-keys", help="Show owner and access keys")
+):
+    """Create a new sync to Rubis."""
+    tasks = storage.list_tasks(show_archived=True)
+    
+    if not tasks:
+        console.print("[yellow]No tasks to sync. Add some tasks first.[/yellow]")
+        return
+    
+    try:
+        console.print("[cyan]Creating sync to Rubis...[/cyan]")
+        result = rubis_sync.sync_to_rubis(tasks, public=public)
+        
+        if result.get("url") is None:
+            console.print("[yellow]Sync created in offline mode. The Rubis service seems to be unavailable.[/yellow]")
+            console.print("[yellow]Your sync information has been saved locally, but the online sync was not completed.[/yellow]")
+            console.print("[yellow]Try again later when the Rubis service is available.[/yellow]")
+        else:
+            console.print("[green]Sync created successfully![/green]")
+            console.print(f"Scrap URL: [link={result['url']}]{result['url']}[/link]")
+        
+        if show_keys:
+            console.print()
+            console.print("[bold yellow]Keep these keys private:[/bold yellow]")
+            console.print(f"Owner Key: [yellow]{result['owner_key']}[/yellow]")
+            if result['access_key']:
+                console.print(f"Access Key: [yellow]{result['access_key']}[/yellow]")
+        else:
+            console.print("[dim](Use --show-keys to display owner and access keys)[/dim]")
+        
+        console.print("\n[bold green]Sync information saved to AppData/TaskForge[/bold green]")
+    except Exception as e:
+        console.print(f"[red]Error creating sync: {e}[/red]")
+
+
+@sync_app.command("update")
+def update_sync(show_keys: bool = typer.Option(False, "--show-keys", help="Show owner and access keys")):
+    """Update an existing sync with current tasks."""
+    current_sync = rubis_sync.get_current_sync_info()
+    
+    if not current_sync["id"]:
+        console.print("[yellow]No active sync found. Use 'create' to start a new sync.[/yellow]")
+        return
+    
+    tasks = storage.list_tasks(show_archived=True)
+    
+    if not tasks:
+        console.print("[yellow]No tasks to sync. Add some tasks first.[/yellow]")
+        return
+    
+    try:
+        console.print("[cyan]Updating sync on Rubis...[/cyan]")
+        result = rubis_sync.update_sync(tasks)
+        
+        console.print("[green]Sync updated successfully![/green]")
+        console.print(f"Scrap URL: [link={result['url']}]{result['url']}[/link]")
+        
+        if show_keys:
+            console.print()
+            console.print("[bold yellow]Keep these keys private:[/bold yellow]")
+            console.print(f"Owner Key: [yellow]{result['owner_key']}[/yellow]")
+            if result['access_key']:
+                console.print(f"Access Key: [yellow]{result['access_key']}[/yellow]")
+    except Exception as e:
+        console.print(f"[red]Error updating sync: {e}[/red]")
+
+
+@sync_app.command("import")
+def import_sync(
+    scrap_url: Optional[str] = typer.Argument(None, help="URL or ID of the scrap to import"),
+    access_key: Optional[str] = typer.Option(None, "--key", "-k", help="Access key for private scraps"),
+    merge: bool = typer.Option(False, "--merge", "-m", help="Merge with existing tasks instead of replacing"),
+    force: bool = typer.Option(False, "--force", "-f", help="Import without confirmation")
+):
+    """Import tasks from a Rubis scrap."""
+    # If no URL provided, use the saved sync if available
+    if not scrap_url:
+        current_sync = rubis_sync.get_current_sync_info()
+        if current_sync["id"]:
+            scrap_url = current_sync["id"]
+            access_key = current_sync.get("access_key")
+            
+            console.print(f"Using saved sync: [cyan]{current_sync['url']}[/cyan]")
+        else:
+            console.print("[yellow]No URL provided and no saved sync found.[/yellow]")
+            return
+    
+    try:
+        console.print("[cyan]Importing tasks from Rubis...[/cyan]")
+        imported_tasks = rubis_sync.get_tasks_from_scrap(scrap_url, access_key)
+        
+        if not imported_tasks:
+            console.print("[red]No tasks found in the scrap or unable to access the scrap.[/red]")
+            return
+        
+        console.print(f"[green]Found {len(imported_tasks)} tasks in the scrap.[/green]")
+        
+        if not force:
+            if merge:
+                confirm = typer.confirm("Are you sure you want to merge these tasks with your existing tasks?")
+            else:
+                confirm = typer.confirm("Are you sure you want to replace your current tasks with these?")
+            
+            if not confirm:
+                console.print("[yellow]Import cancelled.[/yellow]")
+                return
+        
+        if merge:
+            # Add each imported task to storage
+            for task in imported_tasks:
+                if not storage.get_task(task.id):
+                    storage.add_task(task)
+            
+            storage.save_tasks()
+            console.print(f"[green]Successfully merged {len(imported_tasks)} tasks from Rubis.[/green]")
+        else:
+            # Replace all tasks
+            storage.tasks = {task.id: task for task in imported_tasks}
+            storage.save_tasks()
+            console.print(f"[green]Successfully replaced local tasks with {len(imported_tasks)} tasks from Rubis.[/green]")
+    
+    except Exception as e:
+        console.print(f"[red]Error importing from Rubis: {e}[/red]")
+
+
+@sync_app.command("history")
+def sync_history():
+    """Show sync history."""
+    history = rubis_sync.get_sync_history()
+    
+    if not history:
+        console.print("[yellow]No sync history found.[/yellow]")
+        return
+    
+    table = Table(title="Sync History", box=box.ROUNDED)
+    table.add_column("Date", style="cyan")
+    table.add_column("Scrap ID", style="green")
+    table.add_column("URL", style="blue")
+    
+    for entry in history:
+        if entry.get("id"):
+            table.add_row(
+                entry.get("time", "Unknown"),
+                entry["id"],
+                f"[link={entry['url']}]{entry['url']}[/link]"
+            )
+    
+    console.print(table)
+
+
+@sync_app.command("clear")
+def clear_sync(force: bool = typer.Option(False, "--force", "-f", help="Clear without confirmation")):
+    """Clear saved sync information."""
+    if not force:
+        confirm = typer.confirm("Are you sure you want to clear all saved sync information?")
+        if not confirm:
+            console.print("[yellow]Clear operation cancelled.[/yellow]")
+            return
+    
+    rubis_sync.clear_sync_info()
+    console.print("[green]Sync information cleared successfully.[/green]")
 
 
 if __name__ == "__main__":
