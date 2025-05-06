@@ -15,6 +15,10 @@ from rich import box
 from dateutil import parser
 from pydantic import ValidationError
 
+import shutil
+import platform
+import pathlib
+
 from models import Task, Priority
 from storage import TaskStorage
 from rubis_sync import TaskForgeRubisSync
@@ -124,6 +128,96 @@ def display_tasks(tasks: List[Task], title: str) -> None:
     console.print(table)
 
 
+def get_attachments_dir(task_id: str) -> str:
+    """Get the directory for attachments of a task."""
+    if platform.system() == "Windows":
+        appdata = os.environ.get("APPDATA")
+        base_dir = os.path.join(appdata, "TaskForge", "attachments")
+    else:
+        base_dir = os.path.expanduser("~/.config/taskforge/attachments")
+    return os.path.join(base_dir, task_id)
+
+
+@app.command("attach")
+def attach_file(task_id: str = typer.Argument(..., help="Task ID to attach file to"),
+                file_path: str = typer.Argument(..., help="Path to file to attach")):
+    """Attach a file to a task."""
+    task = storage.get_task(task_id)
+    if not task:
+        console.print(f"[red]Task with ID {task_id} not found.[/red]")
+        return
+    attachments_dir = get_attachments_dir(task.id)
+    os.makedirs(attachments_dir, exist_ok=True)
+    file_name = os.path.basename(file_path)
+    dest_path = os.path.join(attachments_dir, file_name)
+    try:
+        shutil.copy2(file_path, dest_path)
+        if file_name not in task.attachments:
+            task.attachments.append(file_name)
+            storage.update_task(task)
+        console.print(f"[green]Attached {file_name} to task {task_id}.[/green]")
+    except Exception as e:
+        console.print(f"[red]Failed to attach file: {e}[/red]")
+
+
+@app.command("attachments")
+def list_attachments(task_id: str = typer.Argument(..., help="Task ID to list attachments for")):
+    """List all attachments for a task in a tree view, including remote (missing) attachments."""
+    task = storage.get_task(task_id)
+    if not task:
+        console.print(f"[red]Task with ID {task_id} not found.[/red]")
+        return
+    attachments_dir = get_attachments_dir(task.id)
+    from rich.tree import Tree
+    from rich import box
+    tree = Tree(f"[bold cyan]Attachments for Task {task_id}[/bold cyan]", guide_style="bold bright_blue")
+    # Prefer attachments_tree if present (from sync/import)
+    attachments_tree = getattr(task, '_attachments_tree', None)
+    if attachments_tree:
+        for fname, present in attachments_tree.items():
+            fpath = os.path.join(attachments_dir, fname)
+            if present and os.path.exists(fpath):
+                tree.add(f"[green]{fname}[/green]")
+            elif present:
+                tree.add(f"[yellow]{fname} (missing locally)[/yellow]")
+            else:
+                tree.add(f"[dim]{fname} (not available)[/dim]")
+    elif not task.attachments:
+        tree.add("[dim]No attachments found.[/dim]")
+    else:
+        for fname in task.attachments:
+            fpath = os.path.join(attachments_dir, fname)
+            if os.path.exists(fpath):
+                tree.add(f"[green]{fname}[/green]")
+            else:
+                tree.add(f"[yellow]{fname} (not available locally)[/yellow]")
+    console.print(tree)
+
+
+@app.command("open-attachment")
+def open_attachment(task_id: str = typer.Argument(..., help="Task ID"),
+                   file_name: str = typer.Argument(..., help="Attachment file name")):
+    """Open an attached file if available locally."""
+    import subprocess
+    task = storage.get_task(task_id)
+    if not task:
+        console.print(f"[red]Task with ID {task_id} not found.[/red]")
+        return
+    if file_name not in task.attachments:
+        console.print(f"[red]No such attachment: {file_name}[/red]")
+        return
+    attachments_dir = get_attachments_dir(task.id)
+    file_path = os.path.join(attachments_dir, file_name)
+    if not os.path.exists(file_path):
+        console.print(f"[yellow]Attachment not available locally.[/yellow]")
+        return
+    try:
+        os.startfile(file_path)
+        console.print(f"[green]Opened {file_name}.[/green]")
+    except Exception as e:
+        console.print(f"[red]Failed to open attachment: {e}[/red]")
+
+
 @app.command("add")
 def add_task(
     title: str = typer.Argument(..., help="The title of the task"),
@@ -218,6 +312,10 @@ def task_info(task_id: str = typer.Argument(..., help="ID of the task to show"))
     if task.tags:
         tags_text = " ".join([f"[cyan]#{tag}[/cyan]" for tag in task.tags])
         content.append(f"[bold]Tags:[/bold] {tags_text}")
+    
+    if task.attachments:
+        attachments_text = ", ".join(task.attachments)
+        content.append(f"[bold]Attachments:[/bold] {attachments_text}")
     
     panel = Panel("\n".join(content), title=f"Task {task_id[:8]}", expand=False)
     console.print(panel)

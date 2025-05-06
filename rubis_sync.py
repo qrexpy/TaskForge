@@ -71,6 +71,32 @@ class TaskForgeRubisSync:
         with open(self.sync_file, "w") as f:
             json.dump(self.sync_info, f, indent=2)
     
+    def _get_attachments_tree(self, task: Task) -> dict:
+        """Return a tree (dict) of attachment file names for a task."""
+        attachments_dir = self._get_attachments_dir(task.id)
+        tree = {}
+        if os.path.exists(attachments_dir):
+            for fname in task.attachments:
+                fpath = os.path.join(attachments_dir, fname)
+                tree[fname] = os.path.exists(fpath)
+        else:
+            for fname in task.attachments:
+                tree[fname] = False
+        return tree
+
+    def _get_attachments_dir(self, task_id: str) -> str:
+        if platform.system() == "Windows":
+            appdata = os.environ.get("APPDATA")
+            base_dir = os.path.join(appdata, "TaskForge", "attachments")
+        else:
+            base_dir = os.path.expanduser("~/.config/taskforge/attachments")
+        return os.path.join(base_dir, task_id)
+
+    def _task_to_sync_json(self, task: Task) -> dict:
+        d = task.model_dump()
+        d["attachments_tree"] = self._get_attachments_tree(task)
+        return d
+
     def sync_to_rubis(self, tasks: List[Task], public: bool = False) -> Dict[str, str]:
         """
         Sync tasks to Rubis and save the scrap information.
@@ -83,7 +109,7 @@ class TaskForgeRubisSync:
             Dict containing scrap URLs and information
         """
         # Convert tasks to JSON for storage
-        tasks_json = [task.model_dump() for task in tasks]
+        tasks_json = [self._task_to_sync_json(task) for task in tasks]
         content = json.dumps(tasks_json, indent=2, default=str)
         
         # Generate a random access key if not public
@@ -184,7 +210,7 @@ class TaskForgeRubisSync:
         
         try:
             # Convert tasks to JSON for storage
-            tasks_json = [task.model_dump() for task in tasks]
+            tasks_json = [self._task_to_sync_json(task) for task in tasks]
             content = json.dumps(tasks_json, indent=2, default=str)
             
             # Update the existing scrap
@@ -258,7 +284,16 @@ class TaskForgeRubisSync:
             
             # Parse the JSON content into Task objects
             tasks_data = json.loads(content)
-            return [Task(**task_data) for task_data in tasks_data]
+            # If attachments_tree exists, keep it for display but don't add to attachments list
+            result = []
+            for task_data in tasks_data:
+                attachments_tree = task_data.pop("attachments_tree", None)
+                task = Task(**task_data)
+                if attachments_tree:
+                    # Store for display (not for opening if not present locally)
+                    task._attachments_tree = attachments_tree
+                result.append(task)
+            return result
         except Exception as e:
             return []
     

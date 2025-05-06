@@ -17,6 +17,7 @@ TaskForge is a cross-platform command-line task manager built with Python and Ty
 - ⏱️ Snooze tasks to postpone due dates
 - 📋 Copy existing tasks
 - 🔄 Sync tasks with Rubis scraps
+- 📎 Attach files to tasks
 
 ## Installation
 
@@ -160,6 +161,30 @@ python taskforge.py sync import [SCRAP_URL]
 
 # View sync history
 python taskforge.py sync history
+```
+
+### Attachments
+
+TaskForge now supports file attachments for tasks!
+
+- Attach any file to a task using the CLI.
+- View all attached files in a colorful tree view.
+- Open attached files directly from the CLI (if available locally).
+- Attachments are stored in `%APPDATA%/TaskForge/attachments/{task_id}/` on Windows.
+- When syncing, only the attachment tree (file names and presence) is included. Files themselves are not synced until cloud support is added.
+- If you import a sync without attachments, you can still view which files should be attached, but cannot open them until the files are present locally.
+
+### Example Usage
+
+```
+# Attach a file to a task
+python taskforge.py attach [TASK_ID] path/to/file.txt
+
+# List all attachments for a task
+python taskforge.py attachments [TASK_ID]
+
+# Open an attached file (if available locally)
+python taskforge.py open-attachment [TASK_ID] file.txt
 ```
 
 ### Demo

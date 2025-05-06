@@ -36,6 +36,9 @@ This document provides a quick reference for all TaskForge CLI commands and thei
 | `prioritize` | Change a task's priority interactively | `python taskforge.py prioritize 20250506123456` |
 | `prioritize --priority PRIORITY` | Set a task's priority directly | `python taskforge.py prioritize 20250506123456 --priority high` |
 | `prioritize --bump` | Bump a task's priority up one level | `python taskforge.py prioritize 20250506123456 --bump` |
+| `attach` | Attach a file to a task | `python taskforge.py attach 20250506123456 path/to/file.txt` |
+| `attachments` | List all attachments for a task in a tree view | `python taskforge.py attachments 20250506123456` |
+| `open-attachment` | Open an attached file (if available locally) | `python taskforge.py open-attachment 20250506123456 file.txt` |
 
 ## Reminder & Organization
 

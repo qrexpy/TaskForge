@@ -26,6 +26,7 @@ class Task(BaseModel):
     tags: List[str] = Field(default_factory=list)
     archived: bool = False
     archived_at: Optional[datetime] = None
+    attachments: List[str] = Field(default_factory=list)
     
     def complete(self):
         """Mark task as completed."""
