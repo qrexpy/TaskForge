@@ -1,0 +1,83 @@
+[
+  {
+    "id": "20250506101654790",
+    "title": "Complete TaskForge project",
+    "description": "Implement all features for the TaskForge CLI application",
+    "created_at": "2025-05-06T10:16:54.790576",
+    "due_date": "2025-05-06T23:59:00.786286",
+    "completed": false,
+    "completed_at": null,
+    "priority": "high",
+    "tags": [
+      "coding",
+      "project"
+    ],
+    "archived": false,
+    "archived_at": null
+  },
+  {
+    "id": "20250506101654796",
+    "title": "Pay electricity bill",
+    "description": null,
+    "created_at": "2025-05-06T10:16:54.796541",
+    "due_date": "2025-05-09T22:16:54.786286",
+    "completed": false,
+    "completed_at": null,
+    "priority": "urgent",
+    "tags": [
+      "bills",
+      "home"
+    ],
+    "archived": false,
+    "archived_at": null
+  },
+  {
+    "id": "20250506101654799",
+    "title": "Call mom",
+    "description": null,
+    "created_at": "2025-05-06T10:16:54.799980",
+    "due_date": null,
+    "completed": false,
+    "completed_at": null,
+    "priority": "low",
+    "tags": [
+      "personal"
+    ],
+    "archived": false,
+    "archived_at": null
+  },
+  {
+    "id": "20250506101654794",
+    "title": "Buy groceries",
+    "description": "Milk, eggs, bread, fruits",
+    "created_at": "2025-05-06T10:16:54.794543",
+    "due_date": null,
+    "completed": false,
+    "completed_at": null,
+    "priority": "high",
+    "tags": [
+      "shopping",
+      "home"
+    ],
+    "archived": false,
+    "archived_at": null
+  },
+  {
+    "id": "2025050610175192",
+    "title": "Call mom",
+    "description": null,
+    "created_at": "2025-05-06T10:16:54.799980",
+    "due_date": "2025-05-10T00:00:00",
+    "completed": false,
+    "completed_at": null,
+    "priority": "low",
+    "tags": [
+      "family",
+      "personal",
+      "important",
+      "weekend"
+    ],
+    "archived": false,
+    "archived_at": null
+  }
+]
