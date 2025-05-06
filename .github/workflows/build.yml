@@ -25,7 +25,9 @@ jobs:
 
       - name: Build with Nuitka (onefile)
         run: |
-          python -m nuitka --onefile --output-filename=taskforge.exe taskforge.py
+          python -m nuitka --onefile --assume-yes-for-downloads --output-filename=taskforge.exe taskforge.py
+        env:
+          NUITKA_ASSUME_YES_FOR_DOWNLOADS: 1
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
