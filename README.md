@@ -13,6 +13,10 @@ TaskForge is a cross-platform command-line task manager built with Python and Ty
 - ⏰ View upcoming tasks with due dates
 - 📤 Export tasks to JSON files
 - 📥 Import tasks from JSON files
+- 📁 Archive and restore tasks
+- ⏱️ Snooze tasks to postpone due dates
+- 📋 Copy existing tasks
+- 🔄 Sync tasks with Rubis scraps
 
 ## Installation
 
@@ -74,6 +78,12 @@ python taskforge.py info [TASK_ID]
 python taskforge.py complete [TASK_ID]
 ```
 
+### Uncompleting Tasks
+
+```
+python taskforge.py uncomplete [TASK_ID]
+```
+
 ### Editing Tasks
 
 ```
@@ -92,6 +102,40 @@ python taskforge.py delete [TASK_ID]
 python taskforge.py remind
 ```
 
+### Prioritizing Tasks
+
+```
+python taskforge.py prioritize [TASK_ID] --priority high
+# or bump the priority up one level
+python taskforge.py prioritize [TASK_ID] --bump
+```
+
+### Snoozing Tasks
+
+```
+# Postpone a task by 1 day, 2 hours, and 30 minutes
+python taskforge.py snooze [TASK_ID] 1d2h30m
+```
+
+### Archiving Tasks
+
+```
+# Archive a task
+python taskforge.py archive [TASK_ID]
+
+# List archived tasks
+python taskforge.py list-archived
+
+# Restore an archived task
+python taskforge.py restore [TASK_ID]
+```
+
+### Copy Tasks
+
+```
+python taskforge.py copy [TASK_ID] --due "2025-06-01" --tags "new,tags" --keep-tags
+```
+
 ### Export and Import
 
 ```
@@ -100,6 +144,22 @@ python taskforge.py export tasks_backup.json
 
 # Import tasks from a JSON file
 python taskforge.py import tasks_backup.json
+```
+
+### Task Synchronization with Rubis
+
+```
+# Create a new sync
+python taskforge.py sync create
+
+# Update an existing sync
+python taskforge.py sync update
+
+# Import tasks from a Rubis scrap
+python taskforge.py sync import [SCRAP_URL]
+
+# View sync history
+python taskforge.py sync history
 ```
 
 ### Demo
@@ -112,11 +172,7 @@ python taskforge.py demo
 
 ## Task Synchronization
 
-TaskForge stores task data locally in the `data` directory. For task synchronization across devices, you can use:
-
-1. A cloud storage service (like Dropbox, Google Drive) to sync the `data` directory
-2. Version control systems like Git
-3. Export/import functionality for manual syncing
+TaskForge stores task data locally in the `data` directory and offers integration with the Rubis service for cloud-based task synchronization.
 
 ## Contributing
 
